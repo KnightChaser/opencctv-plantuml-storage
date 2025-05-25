@@ -1,0 +1,11 @@
+@startuml
+actor UserA as A
+actor UserB as B
+
+A -> B : "hello"
+B -> A : "hello, how are you back"
+
+== Status Update ==
+A -> A : received_hello_from_other = true
+B -> B : received_hello_from_other = true
+@enduml
