@@ -1,0 +1,35 @@
+@startuml
+'== User & RBAC Domain Model ==
+
+class User {
+    +UUID id
+    +String username
+    +String passwordHash
+    +String email
+    +Boolean emailVerified
+    +DateTime createdAt
+    +DateTime lastLogin
+}
+
+class Role {
+    +UUID id
+    +String name
+    +String description
+}
+
+class Permission {
+    +UUID id
+    +String name
+    +String description
+}
+
+class Session {
+    +String token
+    +DateTime issuedAt
+    +DateTime expiresAt
+}
+
+User "1" -- "*" Role            : assignedRoles >
+Role "1" -- "*" Permission      : grantedPermissions >
+User "1" -- "*" Session         : activeSessions >
+@enduml
