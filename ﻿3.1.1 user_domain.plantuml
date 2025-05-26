@@ -1,0 +1,48 @@
+@startuml
+title User Authentication & Role Domain Model
+
+' 사용자 계정 정보
+class User {
+  +UUID id
+  +String username
+  +String email
+  +String passwordHash
+  +Boolean emailVerified
+  +DateTime createdAt
+}
+
+' 역할
+class Role {
+  +UUID id
+  +String name  <<ex: "Admin", "Operator", "Viewer">>
+  +String description
+}
+
+' JWT 토큰
+class Token {
+  +String accessToken
+  +String refreshToken
+  +DateTime accessExpiresAt
+  +DateTime refreshExpiresAt
+}
+
+' Keycloak 인증 시스템
+class AuthProvider {
+  +login(username, password): Token
+  +register(userData): void
+  +validateToken(token): Boolean
+}
+
+' 미들웨어에서의 역할 확인
+class RBACMiddleware {
+  +checkAccess(user: User, resource: String): Boolean
+}
+
+' 연관관계
+User "1" --> "*" Role : assigned
+User "1" --> "1" Token : activeSession
+User "1" --> AuthProvider : authenticatedVia
+RBACMiddleware --> User : checks
+RBACMiddleware --> Role : enforces
+
+@enduml
