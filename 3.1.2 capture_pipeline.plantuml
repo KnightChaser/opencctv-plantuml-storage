@@ -1,56 +1,48 @@
 @startuml
-title Video Capture & Circular Buffer Pipeline
+'== Capture & Circular Buffer Domain Model ==
 
-' 비디오 캡처 장치 (libcamera 또는 FFmpeg)
 class VideoCaptureDevice {
-  +startCapture()
-  +stopCapture()
-  +captureFrame(): RawFrame
-  +driverType: String
+    +UUID id
+    +String driverType  <<libcamera or ffmpeg>>
+    +String resolution  <<ex: 1080p@30fps>>
+    +Boolean isActive
 }
 
-' 인코더: H.264
 class Encoder {
-  +encode(frame: RawFrame): EncodedFrame
-  +codec: String
-  +bitrate: int
-  +gop: int
+    +String codec  <<H.264>>
+    +int bitrate
+    +int gopSize
 }
 
-' 세그먼트 단위 영상
 class VideoSegment {
-  +segmentId: UUID
-  +startTime: DateTime
-  +endTime: DateTime
-  +data: EncodedFrame[]
+    +UUID id
+    +DateTime startTime
+    +DateTime endTime
+    +int sizeInMB
 }
 
-' 순환 버퍼 저장 구조
 class CircularBuffer {
-  +bufferSize: int
-  +addSegment(segment: VideoSegment)
-  +removeOldest()
-  +getFreeSpace(): int
+    +int maxSizeInMB
+    +int currentUsage
+    +String storagePath
 }
 
-' 디스크 저장 관리자
-class StorageManager {
-  +write(segment: VideoSegment): Boolean
-  +checkDiskStatus(): String
-  +path: String
+class StoragePolicy {
+    +String policyType  <<LRU, TTL>>
+    +int maxRetentionHours
 }
 
-' 예외 처리 및 재시도
-class ErrorHandler {
-  +retryWithBackoff(task: () -> Boolean): Boolean
-  +reportError(msg: String)
+class CaptureError {
+    +UUID id
+    +String errorType  <<e.g. DiskWriteError>>
+    +int retryCount
+    +DateTime lastOccurred
 }
 
-' 관계 연결
-VideoCaptureDevice --> Encoder : uses >
-Encoder --> VideoSegment : creates >
-VideoSegment --> CircularBuffer : storedIn >
-CircularBuffer --> StorageManager : persistedBy >
-StorageManager --> ErrorHandler : notifiesOnFailure >
+VideoCaptureDevice "1" -- "1" Encoder           : uses >
+Encoder "1" -- "*" VideoSegment                 : encodes >
+VideoSegment "*" -- "1" CircularBuffer          : storedIn >
+CircularBuffer "1" -- "1" StoragePolicy         : managedBy >
+CircularBuffer "1" -- "*" CaptureError          : records >
 
 @enduml
