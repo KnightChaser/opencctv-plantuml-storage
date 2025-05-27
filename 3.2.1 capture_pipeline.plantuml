@@ -1,0 +1,56 @@
+@startuml
+title Video Capture & Circular Buffer Pipeline
+
+' 비디오 캡처 장치 (libcamera 또는 FFmpeg)
+class VideoCaptureDevice {
+  +startCapture()
+  +stopCapture()
+  +captureFrame(): RawFrame
+  +driverType: String
+}
+
+' 인코더: H.264
+class Encoder {
+  +encode(frame: RawFrame): EncodedFrame
+  +codec: String
+  +bitrate: int
+  +gop: int
+}
+
+' 세그먼트 단위 영상
+class VideoSegment {
+  +segmentId: UUID
+  +startTime: DateTime
+  +endTime: DateTime
+  +data: EncodedFrame[]
+}
+
+' 순환 버퍼 저장 구조
+class CircularBuffer {
+  +bufferSize: int
+  +addSegment(segment: VideoSegment)
+  +removeOldest()
+  +getFreeSpace(): int
+}
+
+' 디스크 저장 관리자
+class StorageManager {
+  +write(segment: VideoSegment): Boolean
+  +checkDiskStatus(): String
+  +path: String
+}
+
+' 예외 처리 및 재시도
+class ErrorHandler {
+  +retryWithBackoff(task: () -> Boolean): Boolean
+  +reportError(msg: String)
+}
+
+' 관계 연결
+VideoCaptureDevice --> Encoder : uses >
+Encoder --> VideoSegment : creates >
+VideoSegment --> CircularBuffer : storedIn >
+CircularBuffer --> StorageManager : persistedBy >
+StorageManager --> ErrorHandler : notifiesOnFailure >
+
+@enduml
