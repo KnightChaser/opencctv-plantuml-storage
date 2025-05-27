@@ -1,55 +1,55 @@
 @startuml
-' 3.2.3_user_login_flow.plantuml
+' 3.2.3_user_login_flow_en.plantuml
 participant User
-participant "Web UI\n(React)" as WebUI
+participant "Web service\n(React.js)" as WebUI
 participant "Auth Service\n(Keycloak)" as AuthService
 participant AppServer
 participant RoleService
 database UserDB
 
-== 회원가입 흐름 ==
+== Sign-Up Flow ==
 User -> WebUI: POST /api/v1/auth/signup\n{ username, password, email }
 activate WebUI
 WebUI -> AuthService: CreateUser(username, passwordHash, email)
 activate AuthService
-AuthService -> UserDB: INSERT INTO users\n(username, password_hash, email,…)
+AuthService -> UserDB: Persist new user record
 UserDB --> AuthService: OK
 AuthService --> WebUI: 201 Created\n{ userId }
 deactivate AuthService
 WebUI --> User: 201 Created
 deactivate WebUI
 
-== 로그인 & 토큰 발급 흐름 ==
+== Login & Token Issuance Flow ==
 User -> WebUI: POST /api/v1/auth/login\n{ username, password }
 activate WebUI
 WebUI -> AuthService: ValidateCredentials(username, password)
 activate AuthService
-AuthService -> UserDB: SELECT * FROM users\nWHERE username=…
-UserDB --> AuthService: { userRow }
-AuthService -> AuthService: verify passwordHash
-AuthService -> AuthService: generate JWT accessToken\n(rs256, exp=1h)\ngenerate RefreshToken (exp=7d)
+AuthService -> UserDB: Fetch user by username
+UserDB --> AuthService: { userRecord }
+AuthService -> AuthService: Verify passwordHash
+AuthService -> AuthService: Generate JWT accessToken\n(RS256, exp=1h)\nGenerate refreshToken (exp=7d)
 AuthService --> WebUI: 200 OK\n{ accessToken, refreshToken }
 deactivate AuthService
 WebUI --> User: 200 OK\n{ accessToken, refreshToken }
 deactivate WebUI
 
-== 보호 리소스 접근 흐름 ==
+== Protected Resource Access Flow ==
 User -> WebUI: GET /api/v1/data\nAuthorization: Bearer accessToken
 activate WebUI
 WebUI -> AppServer: GET /api/v1/data\nBearer accessToken
 activate AppServer
 AppServer -> AuthService: IntrospectToken(accessToken)
 activate AuthService
-AuthService -> AuthService: verify signature, exp
-AuthService -> RoleService: GetRolesAndPermissions(userId)
+AuthService -> AuthService: Verify signature and expiry
+AuthService -> RoleService: Get roles & permissions(userId)
 activate RoleService
-RoleService -> UserDB: SELECT r.*, p.*\nFROM roles r\nJOIN user_roles ur\nJOIN permissions p …
-UserDB --> RoleService: roles+permissions
+RoleService -> UserDB: Fetch roles & permissions for user
+UserDB --> RoleService: { roles, permissions }
 RoleService --> AuthService: { roles, permissions }
 deactivate RoleService
 AuthService --> AppServer: Token valid + ACL info
 deactivate AuthService
-AppServer -> AppServer: enforce RBAC(permissions)
+AppServer -> AppServer: Enforce RBAC(permissions)
 AppServer --> WebUI: 200 OK\n{ protected data }
 deactivate AppServer
 WebUI --> User: 200 OK\n{ protected data }
