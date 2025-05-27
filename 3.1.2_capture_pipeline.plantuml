@@ -1,0 +1,48 @@
+@startuml
+'== Capture & Circular Buffer Domain Model ==
+
+class VideoCaptureDevice {
+    +UUID id
+    +String driverType  <<libcamera or ffmpeg>>
+    +String resolution  <<ex: 1080p@30fps>>
+    +Boolean isActive
+}
+
+class Encoder {
+    +String codec  <<H.264>>
+    +int bitrate
+    +int gopSize
+}
+
+class VideoSegment {
+    +UUID id
+    +DateTime startTime
+    +DateTime endTime
+    +int sizeInMB
+}
+
+class CircularBuffer {
+    +int maxSizeInMB
+    +int currentUsage
+    +String storagePath
+}
+
+class StoragePolicy {
+    +String policyType  <<LRU, TTL>>
+    +int maxRetentionHours
+}
+
+class CaptureError {
+    +UUID id
+    +String errorType  <<e.g. DiskWriteError>>
+    +int retryCount
+    +DateTime lastOccurred
+}
+
+VideoCaptureDevice "1" -- "1" Encoder           : uses >
+Encoder "1" -- "*" VideoSegment                 : encodes >
+VideoSegment "*" -- "1" CircularBuffer          : storedIn >
+CircularBuffer "1" -- "1" StoragePolicy         : managedBy >
+CircularBuffer "1" -- "*" CaptureError          : records >
+
+@enduml
