@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+
+actor "User" as user
+actor "CCTV Device" as cctv
+actor "GPS Module" as gps
+actor "External Service\n(SendGrid, S3, etc)" as ext
+
+rectangle "OpenCCTV System" {
+
+  usecase "UC01: Sign-Up & Login" as UC01
+  usecase "UC02: Live Stream Viewing" as UC02
+  usecase "UC03: Video Capture & Storage" as UC03
+  usecase "UC04: Video Recording & S3 Upload" as UC04
+  usecase "UC05: GPS Position Tracking" as UC05
+  usecase "UC06: Geofence Breach Detection" as UC06
+  usecase "UC07: Alarm Generation & Notification" as UC07
+}
+
+' actor–use-case relationships
+user --> UC01
+user --> UC02
+user --> UC07
+
+cctv --> UC02
+cctv --> UC03
+cctv --> UC04
+cctv --> UC05
+cctv --> UC06
+
+gps --> UC05
+gps --> UC06
+
+ext --> UC04
+ext --> UC07
+@enduml
