@@ -1,0 +1,62 @@
+@startuml
+title 3.2.3_capture_to_storage_flow.puml
+
+actor "CCTV Device" as Device
+participant "VideoCaptureDevice\n(libcamera/FFmpeg)" as Capture
+participant "Encoder\n(H.264)" as Encoder
+participant "VideoSegment" as Segment
+participant "CircularBuffer\n(SSD/SD 저장소)" as Buffer
+participant "StoragePolicy\n(LRU)" as Policy
+participant "CaptureError\n(Prometheus Alert)" as ErrorHandler
+
+== Boot & Capture Start ==
+Device -> Capture: initialize()
+activate Capture
+Capture -> Capture: check driverType = libcamera
+Capture --> Device: init OK
+deactivate Capture
+
+== Real-Time Video Capture ==
+Device -> Capture: startCapture(resolution=1080p@30fps)
+activate Capture
+Capture -> Encoder: encode(frame)
+activate Encoder
+Encoder -> Segment: split to 60s segments
+activate Segment
+Segment -> Buffer: addSegment(segment)
+activate Buffer
+
+Buffer -> Policy: check available space
+activate Policy
+Policy --> Buffer: OK or trigger LRU deletion
+deactivate Policy
+
+Buffer --> Segment: save OK
+deactivate Buffer
+deactivate Segment
+deactivate Encoder
+deactivate Capture
+
+== Failure Handling: libcamera fails ==
+Device -> Capture: initialize()
+activate Capture
+Capture -> Capture: driverType = libcamera → failure
+Capture --> Device: failure
+deactivate Capture
+
+Device -> Capture: fallback to FFmpeg
+activate Capture
+Capture --> Device: init OK
+deactivate Capture
+
+== Failure Handling: Disk I/O ==
+Buffer -> Buffer: write segment
+Buffer -> Buffer: detect DiskWriteError
+Buffer -> ErrorHandler: log error, retry (max 5x, backoff)
+activate ErrorHandler
+ErrorHandler -> ErrorHandler: retryWithBackoff()
+ErrorHandler -> ErrorHandler: recordPrometheusMetric()
+ErrorHandler -> Device: notifyAdmin()
+deactivate ErrorHandler
+
+@enduml
