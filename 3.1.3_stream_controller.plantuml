@@ -1,0 +1,83 @@
+@startuml
+'== View Real-Time Streaming ==
+
+class User {
+    +UUID id
+    +String username
+    +String email
+    +String passwordHash
+    +Boolean emailVerified
+    +List<Role> roles
+    +JWTToken currentToken
+}
+
+class JWTToken {
+    +String token
+    +DateTime issuedAt
+    +DateTime expiresAt
+    +Boolean isValid()
+}
+
+class WebUI {
+    +void displayMap()
+    +void clickCCTV(String cameraId)
+    +void requestStream(String cameraId, ProtocolType)
+    +void controlOptions(String resolution, Boolean audio)
+}
+
+enum ProtocolType {
+    WebRTC
+    RTSP
+}
+
+class StreamController {
+    +startStreamingSession(cameraId: String, protocol: ProtocolType): StreamingSession
+    +stopStreamingSession(sessionId: UUID)
+}
+
+class StreamingSession {
+    +UUID sessionId
+    +String cameraId
+    +ProtocolType protocol
+    +DateTime startedAt
+    +DateTime endedAt
+    +SessionStatus status
+}
+
+enum SessionStatus {
+    Initializing
+    Active
+    Failed
+    Ended
+}
+
+class CCTVDevice {
+    +String cameraId
+    +String location
+    +Boolean isOnline
+    +Boolean supportsWebRTC
+    +Boolean supportsRTSP
+}
+
+class STUNServer {
+    +String ip
+    +Boolean reachable
+}
+
+class TURNServer {
+    +String ip
+    +int capacity
+    +Boolean reachable
+}
+
+User *-- "1" JWTToken           : owns >
+User "1" --> "1" WebUI          : interacts >
+WebUI ..> "1" StreamController  : uses >
+StreamController o-- "*" StreamingSession : creates >
+StreamingSession --> "1" ProtocolType
+StreamingSession --> "1" SessionStatus
+StreamingSession --> "1" CCTVDevice : streamsFrom >
+StreamController o-- "*" STUNServer : accesses >
+StreamController o-- "*" TURNServer : fallbackTo >
+
+@enduml

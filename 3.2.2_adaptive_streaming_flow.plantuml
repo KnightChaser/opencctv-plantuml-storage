@@ -1,0 +1,62 @@
+@startuml
+' 3.2.2_adaptive_streaming_flow.plantuml
+
+actor User
+participant "Web service\n(React.js)" as WebUI
+participant "StreamController\n(Golang API)" as StreamController
+participant "CCTVDevice\n(OpenCCTV Client)" as CCTVDevice
+participant "STUN Server\n(Coturn)" as STUNServer
+participant "TURN Server\n(Coturn)" as TURNServer
+participant "StreamingSession\n(WebRTC Handler)" as StreamingSession
+
+== Step 1: Map & CCTV selection ==
+User -> WebUI: Access map UI
+WebUI -> WebUI: Display available CCTV locations
+User -> WebUI: Click on selected CCTV
+
+WebUI -> StreamController: POST /api/v1/stream/start\n{ cameraId, protocol: WebRTC }
+activate StreamController
+
+== Step 2: Check device availability ==
+StreamController -> CCTVDevice: GET /api/v1/device/{cameraId}/status
+CCTVDevice --> StreamController: { isOnline: true, supportsWebRTC: true }
+
+== Step 3: ICE negotiation ==
+StreamController -> STUNServer: Request ICE candidates
+STUNServer --> StreamController: Return candidate list
+
+alt TURN fallback
+  StreamController -> TURNServer: Allocate relay channel
+  TURNServer --> StreamController: Relay candidate allocated
+end
+
+== Step 4: Start streaming session ==
+StreamController -> StreamingSession: Initialize WebRTC Session\n{ cameraId, protocol: WebRTC }
+activate StreamingSession
+StreamingSession -> CCTVDevice: Start media stream (H.264 RTP)
+CCTVDevice --> StreamingSession: Streaming ready
+StreamingSession --> StreamController: Session started\n{ sessionId }
+deactivate StreamingSession
+
+StreamController --> WebUI: 200 OK\n{ streamUrl, sessionId }
+deactivate StreamController
+WebUI --> User: Start WebRTC playback (via browser)
+
+== Step 5: Adaptive video quality(resolution) control ==
+WebUI -> StreamController: Report bandwidth
+
+alt Bandwidth >= 25 Mbps
+    StreamController -> StreamingSession: Adjust quality to 4K
+    StreamingSession --> WebUI: Notify video quality changed to 4K
+else Bandwidth >= 5 Mbps
+    StreamController -> StreamingSession: Adjust quality to 1080p
+    StreamingSession --> WebUI: Notify video quality changed to 1080p
+else Bandwidth >= 1.1 Mbps
+    StreamController -> StreamingSession: Adjust quality to 720p
+    StreamingSession --> WebUI: Notify video quality changed to 720p
+else
+    StreamController -> StreamingSession: Adjust quality to 360p
+    StreamingSession --> WebUI: Notify video quality changed to 360p
+
+
+@enduml

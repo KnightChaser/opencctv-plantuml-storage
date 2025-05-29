@@ -1,0 +1,77 @@
+@startuml
+'== Video Recording and Metadata Storage ==
+
+class CCTVDevice {
+    +String cameraId
+    +String location
+    +Boolean isOnline
+    +Boolean isRecording
+}
+
+class Encoder {
+    +String codec           <<e.g. H.264>>
+    +int bitrate
+    +int gopSize
+    +int segmentIntervalMin <<e.g. 5>>
+}
+
+class VideoSegment {
+    +UUID segmentId
+    +DateTime startTime
+    +DateTime endTime
+    +int sizeInMB
+    +String filePath
+}
+
+class BlobUploader {
+    +int retryLimit = 3
+    +void uploadToS3(VideoSegment)
+}
+
+class S3Object {
+    +String s3Key
+    +String storageClass   <<e.g. STANDARD, GLACIER>>
+    +Boolean encrypted     <<SSE-S3>>
+    +DateTime uploadedAt
+}
+
+class LifecyclePolicy {
+    +String policyType    <<e.g. DeleteAfterDays>>
+    +int retentionDays
+}
+
+class MetadataRecord {
+    +UUID id
+    +String cameraId
+    +DateTime startTime
+    +DateTime endTime
+    +String s3Key
+    +AccessControlList acl
+    +Boolean uploadSuccess
+    +String statusMessage
+}
+
+class AccessControlList {
+    +List<UUID> allowedUserIds
+}
+
+class RDSDatabase {
+    +void saveMetadata(MetadataRecord)
+    +void logUploadError(MetadataRecord)
+}
+
+class AlertingLambda {
+    +void notifyAdmin(String message)
+}
+
+CCTVDevice "1" o-- "1" Encoder                 : encodes >
+Encoder "1" --> "*" VideoSegment              : produces >
+VideoSegment "1" --> "1" BlobUploader         : uploadedBy >
+BlobUploader "1" --> "1..*" S3Object          : creates >
+S3Object "*" --> "1" LifecyclePolicy          : managedBy >
+BlobUploader --> "1" RDSDatabase              : reportsTo >
+RDSDatabase "1" --> "*" MetadataRecord        : stores >
+MetadataRecord "1" --> "1" AccessControlList  : securedBy >
+BlobUploader --> "0..1" AlertingLambda        : alertsOnFailure >
+
+@enduml
