@@ -29,7 +29,12 @@ class Session {
     +DateTime expiresAt
 }
 
-User "1" -- "*" Role            : assignedRoles >
-Role "1" -- "*" Permission      : grantedPermissions >
-User "1" -- "*" Session         : activeSessions >
+' A user aggregates roles (roles exist independently)
+User "1" o-- "*" Role            : assignedRoles
+
+' A role aggregates permissions (permissions exist independently)
+Role "1" o-- "*" Permission      : grantedPermissions
+
+' A user composes sessions (sessions lifecycle bound to user)
+User "1" *-- "*" Session         : activeSessions
 @enduml
