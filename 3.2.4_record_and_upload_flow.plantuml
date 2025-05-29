@@ -1,0 +1,47 @@
+@startuml
+' 3.2.4_record_and_upload_flow.plantuml
+
+participant "CCTV Device\n(Raspberry Pi)" as CCTVDevice
+participant "Encoder\n(libcamera / ffmpeg)" as Encoder
+participant "BlobUploader\n(Go SDK)" as BlobUploader
+participant "AWS S3\n(Object Storage)" as S3
+participant "RDS Database\n(PostgreSQL)" as RDS
+participant "Alert Lambda\n(Notification)" as Lambda
+
+== Segment Creation Flow ==
+CCTVDevice -> Encoder: Start recording
+activate Encoder
+Encoder -> Encoder: Segment video every 5 minutes\n(H.264, GOP: 60)
+Encoder --> CCTVDevice: Segment ready {VideoSegment}
+deactivate Encoder
+
+== Upload Flow ==
+CCTVDevice -> BlobUploader: uploadToS3(segment)
+activate BlobUploader
+BlobUploader -> S3: PUT /cctv/blobs/{s3Key}\n(SSE-S3 encrypted)
+S3 --> BlobUploader: 200 OK\n{ s3Key, location }
+
+== Metadata Storage ==
+BlobUploader -> RDS: INSERT INTO metadata\n{ camera_id, start_time, end_time, s3Key, acl }
+RDS --> BlobUploader: 200 OK
+deactivate BlobUploader
+
+== Lifecycle Management ==
+S3 -> S3: Apply Lifecycle (e.g., Delete after 30d / Archive to Glacier)
+
+== Alternate Flow: Upload Failure ==
+alt S3 upload fails
+  BlobUploader -> BlobUploader: Retry (max 3 times)\n(exponential backoff)
+  alt Retries failed
+    BlobUploader -> Lambda: notifyAdmin("Upload failure: camera_id=...")
+    Lambda --> BlobUploader: ACK
+  end
+end
+
+== Alternate Flow: Metadata Storage Failure ==
+alt Metadata insert fails
+  BlobUploader -> RDS: INSERT failed
+  BlobUploader -> RDS: Log error {status=QUEUED_FOR_RETRY}
+end
+
+@enduml
