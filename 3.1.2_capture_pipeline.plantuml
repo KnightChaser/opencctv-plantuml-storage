@@ -39,10 +39,18 @@ class CaptureError {
     +DateTime lastOccurred
 }
 
-VideoCaptureDevice "1" -- "1" Encoder           : uses >
-Encoder "1" -- "*" VideoSegment                 : encodes >
-VideoSegment "*" -- "1" CircularBuffer          : storedIn >
-CircularBuffer "1" -- "1" StoragePolicy         : managedBy >
-CircularBuffer "1" -- "*" CaptureError          : records >
+' Device strongly owns its encoder (destroy device → encoder gone)
+VideoCaptureDevice "1" *-- "1" Encoder           : uses
 
+' Encoder merely produces segments (loose association)
+Encoder "1" -- "*" VideoSegment                 : encodes
+
+' Buffer strongly owns segments it holds (overwrites/delete on eviction)
+CircularBuffer "1" *-- "*" VideoSegment         : storedSegments >
+
+' Buffer aggregates a policy (policy exists or can be reused elsewhere)
+CircularBuffer "1" o-- "1" StoragePolicy        : managedBy
+
+' Buffer strongly owns its error records (tied to buffer lifecycle)
+CircularBuffer "1" *-- "*" CaptureError         : records
 @enduml
