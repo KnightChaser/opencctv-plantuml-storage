@@ -42,9 +42,21 @@ StreamController --> WebUI: 200 OK\n{ streamUrl, sessionId }
 deactivate StreamController
 WebUI --> User: Start WebRTC playback (via browser)
 
-== Step 5: Adaptive quality control ==
-WebUI -> StreamController: Report bandwidth = 1.1 Mbps
-StreamController -> StreamingSession: Adjust quality to 720p
-StreamingSession --> WebUI: Notify video quality changed
+== Step 5: Adaptive video quality(resolution) control ==
+WebUI -> StreamController: Report bandwidth
+
+alt Bandwidth >= 25 Mbps
+    StreamController -> StreamingSession: Adjust quality to 4K
+    StreamingSession --> WebUI: Notify video quality changed to 4K
+else Bandwidth >= 5 Mbps
+    StreamController -> StreamingSession: Adjust quality to 1080p
+    StreamingSession --> WebUI: Notify video quality changed to 1080p
+else Bandwidth >= 1.1 Mbps
+    StreamController -> StreamingSession: Adjust quality to 720p
+    StreamingSession --> WebUI: Notify video quality changed to 720p
+else
+    StreamController -> StreamingSession: Adjust quality to 360p
+    StreamingSession --> WebUI: Notify video quality changed to 360p
+
 
 @enduml
