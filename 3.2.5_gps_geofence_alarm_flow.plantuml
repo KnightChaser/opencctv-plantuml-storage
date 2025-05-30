@@ -1,0 +1,51 @@
+@startuml
+' 3.2.5_gps_geofence_alarm_flow.plantuml
+
+actor User
+participant WebUI
+participant CCTVDevice
+participant GPSModule
+participant WebSocketServer
+participant LocationStorage
+
+== Initialization ==
+CCTVDevice -> GPSModule: initialize()
+GPSModule --> CCTVDevice: OK
+
+== Real-Time Location Updates ==
+loop every 1 sec
+  GPSModule -> CCTVDevice: NMEA GGA Sentence
+  CCTVDevice -> GPSModule: parseNMEA(sentence)
+  GPSModule --> CCTVDevice: Location { lat, lng, timestamp }
+  CCTVDevice -> WebSocketServer: sendLocation(Location)
+  WebSocketServer -> LocationStorage: save(Location)
+  WebSocketServer -> WebUI: broadcastLocation(Location)
+end
+
+== Web UI Updates ==
+User -> WebUI: open map view
+WebUI -> WebSocketServer: subscribe(cameraId)
+WebSocketServer --> WebUI: latest Location
+WebUI -> WebUI: updateMarker(Location)
+WebUI -> WebUI: showPath(last 24h)
+
+== Alternate Flow: GPS Signal Lost ==
+alt GPS signal temporarily lost
+  GPSModule -> CCTVDevice: signalLost()
+  CCTVDevice -> WebSocketServer: notifyNoSignal(cameraId)
+  WebSocketServer -> WebUI: broadcast "No signal"
+end
+
+== Exception Flow: GPS module disconnected ==
+alt GPS module malfunction
+  GPSModule -> CCTVDevice: hardwareError()
+  CCTVDevice -> WebSocketServer: report("GPS module not found")
+  WebSocketServer -> LocationStorage: logEvent("GPS failure")
+end
+
+== Exception Flow: Map API unavailable ==
+alt map rendering fails
+  WebUI -> WebUI: log error "Map API unavailable"
+end
+
+@enduml
