@@ -1,0 +1,76 @@
+@startuml
+'== Geofence Breach Detection ==
+
+class User {
+    +UUID id
+    +String username
+    +String email
+}
+
+class WebUI {
+    +void configureGeofence(cameraId: String, radius: float, durationMin: int)
+    +void receiveAlarmEvent(cameraId: String)
+}
+
+class GeofenceRule {
+    +float radiusMeters
+    +int durationMinutes
+    +GeoPoint center
+    +Boolean isValid()
+}
+
+class GeoPoint {
+    +float latitude
+    +float longitude
+}
+
+class GPSModule {
+    +String deviceId
+    +GeoPoint currentLocation
+    +Boolean hasSignal
+    +GeoPoint parseNMEA(String nmeaSentence)
+}
+
+class CCTVDevice {
+    +String cameraId
+    +Boolean isOnline
+    +GeoPoint currentLocation
+    +void updateLocation(GeoPoint)
+}
+
+class GeofenceMonitor {
+    +void checkBreach(GeoPoint, GeofenceRule)
+    +void startTimerIfBreached()
+    +void cancelTimerIfRecovered()
+}
+
+class AlarmDispatcher {
+    +void triggerAlarm(String cameraId)
+    +void sendToEmail(String userEmail)
+    +void sendToWebSocket(String cameraId)
+}
+
+class AlarmLog {
+    +UUID logId
+    +String cameraId
+    +DateTime triggeredAt
+    +String reason
+}
+
+class AlarmStorage {
+    +void saveLog(AlarmLog)
+}
+
+User "1" --> "1" WebUI             : configures >
+WebUI --> "1" GeofenceRule         : submits >
+CCTVDevice "1" *-- "1" GPSModule   : contains >
+GPSModule --> "1" GeoPoint         : parses >
+CCTVDevice --> "1" GeoPoint        : updates >
+CCTVDevice --> "1" GeofenceMonitor : notifies >
+GeofenceMonitor --> "1" GeofenceRule : checksAgainst >
+GeofenceMonitor --> "1" AlarmDispatcher : triggers >
+AlarmDispatcher --> "1" AlarmStorage : logs >
+AlarmDispatcher --> "1" WebUI      : notifies >
+AlarmStorage --> "*" AlarmLog      : stores >
+
+@enduml
