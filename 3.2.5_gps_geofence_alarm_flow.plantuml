@@ -41,6 +41,7 @@ alt GPS module malfunction
   GPSModule -> CCTVDevice: hardwareError()
   CCTVDevice -> WebSocketServer: report("GPS module not found")
   WebSocketServer -> LocationStorage: logEvent("GPS failure")
+  CCTVDevice -> WebUI: broadcast "GPS module disconnected"
 end
 
 == Exception Flow: Map API unavailable ==
