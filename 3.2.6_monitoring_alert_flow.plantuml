@@ -1,0 +1,57 @@
+@startuml
+' 3.2.6_monitoring_alert_flow.plantuml
+
+actor User
+participant WebUI
+participant GeofenceRule
+participant CCTVDevice
+participant GPSModule
+participant GeofenceMonitor
+participant AlarmDispatcher
+participant AlarmStorage
+
+== Geofence Configuration ==
+User -> WebUI: configureGeofence(cameraId, radius=50, duration=5)
+activate WebUI
+WebUI -> GeofenceRule: createRule(radiusMeters, durationMinutes, center)
+WebUI --> User: 200 OK
+deactivate WebUI
+
+== Real-Time GPS Tracking ==
+loop every 1 sec
+  GPSModule -> CCTVDevice: send current location
+  CCTVDevice -> GeofenceMonitor: updateLocation(cameraId, location)
+end
+
+== Breach Monitoring ==
+GeofenceMonitor -> GeofenceMonitor: checkBreach(location, rule)
+alt within radius
+  GeofenceMonitor -> GeofenceMonitor: cancelTimerIfRecovered()
+else breach detected
+  GeofenceMonitor -> GeofenceMonitor: startTimerIfBreached()
+end
+
+== Breach Confirmed ==
+alt breach > duration (5 min)
+  GeofenceMonitor -> AlarmDispatcher: triggerAlarm(cameraId)
+  activate AlarmDispatcher
+  AlarmDispatcher -> AlarmStorage: saveLog(cameraId, reason)
+  AlarmDispatcher -> WebUI: sendToWebSocket(cameraId, "Breach Confirmed")
+  deactivate AlarmDispatcher
+end
+
+== Exception: GPS Signal Lost ==
+alt GPS signal lost
+  CCTVDevice -> GeofenceMonitor: reportNoSignal(cameraId)
+  GeofenceMonitor -> AlarmStorage: saveLog(cameraId, reason="GPS unstable")
+  GeofenceMonitor -> WebUI: sendToWebSocket(cameraId, "GPS Signal Lost")
+end
+
+== Exception: Invalid Geofence Configuration ==
+alt invalid geofence config (e.g., radius = 0)
+  WebUI -> GeofenceRule: createRule(radius=0)
+  GeofenceRule -> WebUI: isValid() = false
+  WebUI -> User: showError("Invalid geofence configuration")
+end
+
+@enduml

@@ -1,0 +1,61 @@
+@startuml
+'== GPS Location Tracking ==
+
+class GPSModule {
+    +String deviceId
+    +String protocol <<e.g. NMEA 0183>>
+    +Boolean hasSignal
+    +String lastNMEASentence
+    +Location parseNMEA(String nmeaSentence)
+}
+
+class Location {
+    +float latitude
+    +float longitude
+    +DateTime timestamp
+    +Boolean isValid()
+}
+
+class CCTVDevice {
+    +String cameraId
+    +String locationLabel
+    +Boolean isOnline
+    +GPSModule gps
+    +void sendLocation(Location)
+}
+
+class WebSocketServer {
+    +void broadcastLocation(Location)
+    +void notifyNoSignal(cameraId: String)
+}
+
+class LocationStorage {
+    +void save(Location)
+    +List<Location> getHistory(cameraId, lastNHours)
+}
+
+class MapAPI {
+    +String provider <<Google, Naver>>
+    +void drawMarker(Location)
+    +void drawPath(List<Location>)
+}
+
+class WebUI {
+    +void displayMap()
+    +void updateMarker(Location)
+    +void showPath(List<Location>)
+}
+
+User "1" --> "1" WebUI : interacts >
+WebUI ..> "1" MapAPI : renders >
+CCTVDevice "1" *-- "1" GPSModule : embeds >
+GPSModule --> "1" Location : parses >
+CCTVDevice --> "1" Location : sends >
+CCTVDevice --> "1" WebSocketServer : pushesTo >
+WebSocketServer --> "*" WebUI : broadcasts >
+WebSocketServer --> "1" LocationStorage : logsTo >
+LocationStorage --> "*" Location : stores >
+WebUI --> "1" MapAPI : displays >
+MapAPI --> "1" Location : uses >
+
+@enduml
