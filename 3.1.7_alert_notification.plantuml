@@ -65,12 +65,12 @@ class User {
     +String phoneNumber
 }
 
-User "1" --> "1" WebUI                : interacts >
-CCTVDevice "1" --> "1" Alert          : creates >
-Alert "1" --> "1" AlertStorage        : persistedIn >
-AlertStorage "1" --> "*" AlertLog      : logs >
+User "1" --> "*" WebUI                : interacts >
+CCTVDevice "1" --> "*" Alert          : creates >
+Alert "*" --> "1" AlertStorage        : persistedIn >
+AlertStorage "1" --> "*" AlertLog     : logs >
 AlertDispatcher "1" --> "*" ExternalService : uses >
-AlertDispatcher "1" --> "1" WebUI      : pushes >
-AlertDispatcher "1" --> "*" User    : notifies >
+AlertDispatcher "1" --> "*" WebUI     : pushes >
+AlertDispatcher "1" --> "*" User      : notifies >
 AlertDispatcher "1" --> "0..1" Prometheus : alertsAdminOnFailure >
 @enduml
