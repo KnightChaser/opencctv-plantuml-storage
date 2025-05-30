@@ -1,6 +1,7 @@
 @startuml
 ' 3.2.3_user_login_flow_en.plantuml
-participant User
+
+actor User
 participant "Web service\n(React.js)" as WebUI
 participant "Auth Service\n(Keycloak)" as AuthService
 participant AppServer
