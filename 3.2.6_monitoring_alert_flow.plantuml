@@ -36,7 +36,7 @@ alt breach > duration (5 min)
   GeofenceMonitor -> AlarmDispatcher: triggerAlarm(cameraId)
   activate AlarmDispatcher
   AlarmDispatcher -> AlarmStorage: saveLog(cameraId, reason)
-  AlarmDispatcher -> WebUI: sendToWebSocket(cameraId)
+  AlarmDispatcher -> WebUI: sendToWebSocket(cameraId, "Breach Confirmed")
   deactivate AlarmDispatcher
 end
 
@@ -44,6 +44,7 @@ end
 alt GPS signal lost
   CCTVDevice -> GeofenceMonitor: reportNoSignal(cameraId)
   GeofenceMonitor -> AlarmStorage: saveLog(cameraId, reason="GPS unstable")
+  GeofenceMonitor -> WebUI: sendToWebSocket(cameraId, "GPS Signal Lost")
 end
 
 == Exception: Invalid Geofence Configuration ==
