@@ -42,7 +42,7 @@ deactivate WebUI
 
 == Exception: ExternalService Failure ==
 alt API call fails
-  loop Retry (max 2 times)
+  loop Retry (max 5 times, exponential waiting time)
     AlertDispatcher -> ExternalService: retrySend(alert)
     ExternalService --> AlertDispatcher: failure
   end
