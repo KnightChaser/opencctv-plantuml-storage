@@ -1,0 +1,59 @@
+@startuml
+' 3.2.7_alarm_triggering_and_notification_dispatch.plantuml
+
+actor User
+participant "CCTV Device\n(OpenCCTV Client)" as CCTVDevice
+participant "Alert Dispatcher\n(Golang API)" as AlertDispatcher
+database "Alert Storage\n(PostgreSQL)" as AlertStorage
+participant "External Service\n(SendGrid / Twilio)" as ExternalService
+participant "Web UI\n(React.js)" as WebUI
+participant "Prometheus\n(Alert Manager)" as Prometheus
+
+== Alarm Triggered ==
+CCTVDevice -> AlertDispatcher: setAlarmState(cameraId)
+activate AlertDispatcher
+AlertDispatcher -> AlertStorage: saveAlert(cameraId, triggeredAt, message)
+AlertStorage --> AlertDispatcher: 201 Created
+
+== Notification Dispatch ==
+alt User has valid contact info
+  AlertDispatcher -> ExternalService: sendEmail(alert)
+  ExternalService --> AlertDispatcher: 200 OK
+
+  AlertDispatcher -> ExternalService: sendSMS(alert)
+  ExternalService --> AlertDispatcher: 200 OK
+
+  AlertDispatcher -> WebUI: sendWebSocketAlert(alert)
+  WebUI --> AlertDispatcher: 200 OK
+else No contact info
+  AlertDispatcher -> AlertStorage: saveLog("alert delivery failed")
+end
+
+deactivate AlertDispatcher
+
+== Alert Received on Web UI ==
+User -> WebUI: /ws/alerts connection established
+activate WebUI
+WebUI -> WebUI: display alert popup
+User -> WebUI: acknowledgeAlert(alertId)
+WebUI -> AlertStorage: saveLog("user acknowledged")
+AlertStorage --> WebUI: 200 OK
+deactivate WebUI
+
+== Exception: ExternalService Failure ==
+alt API call fails
+  loop Retry (max 2 times)
+    AlertDispatcher -> ExternalService: retrySend(alert)
+    ExternalService --> AlertDispatcher: failure
+  end
+  AlertDispatcher -> Prometheus: raiseAlert("Delivery failed after retries")
+  AlertDispatcher -> AlertStorage: saveLog("delivery failed")
+end
+
+== Alternate: WebSocket disconnected ==
+alt WebSocket not connected
+  WebUI -> AlertStorage: fetchUnseenAlerts(userId)
+  AlertStorage --> WebUI: [alert1, alert2...]
+  WebUI -> WebUI: render alerts on reconnect
+end
+@enduml
