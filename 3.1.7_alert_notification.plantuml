@@ -1,0 +1,76 @@
+@startuml
+'== Alarm Triggering and Notification Dispatch ==
+
+class CCTVDevice {
+    +String cameraId
+    +AlarmStatus status
+    +void setAlarmState()
+}
+
+enum AlarmStatus {
+    Normal
+    Alarm
+}
+
+class Alert {
+    +UUID alertId
+    +String cameraId
+    +DateTime triggeredAt
+    +String message
+    +AlertType type
+}
+
+enum AlertType {
+    Email
+    SMS
+    WebSocket
+}
+
+class ExternalService {
+    +String name          <<e.g. SendGrid, Twilio>>
+    +void sendEmail(Alert)
+    +void sendSMS(Alert)
+}
+
+class WebUI {
+    +void receiveWebSocketAlert(Alert)
+    +void acknowledgeAlert(UUID alertId)
+}
+
+class AlertDispatcher {
+    +int retryLimit = 2
+    +void dispatch(Alert)
+    +void retry(Alert)
+}
+
+class AlertLog {
+    +UUID logId
+    +UUID alertId
+    +String result       <<Success / Failure>>
+    +DateTime loggedAt
+}
+
+class AlertStorage {
+    +void saveAlert(Alert)
+    +void saveLog(AlertLog)
+}
+
+class Prometheus {
+    +void raiseAlert(String metric, String message)
+}
+
+class User {
+    +UUID id
+    +String email
+    +String phoneNumber
+}
+
+User "1" --> "*" WebUI                : interacts >
+CCTVDevice "1" --> "*" Alert          : creates >
+Alert "*" --> "1" AlertStorage        : persistedIn >
+AlertStorage "1" --> "*" AlertLog     : logs >
+AlertDispatcher "1" --> "*" ExternalService : uses >
+AlertDispatcher "1" --> "*" WebUI     : pushes >
+AlertDispatcher "1" --> "*" User      : notifies >
+AlertDispatcher "1" --> "0..1" Prometheus : alertsAdminOnFailure >
+@enduml
